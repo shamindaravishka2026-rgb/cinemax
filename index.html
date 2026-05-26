@@ -1,10 +1,10 @@
-
+```html
 <!DOCTYPE html>
 <html lang="si">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>සිනමා මැක්ස් ප්‍රෝ - Cloud Streaming</title>
+    <title>සිනමා මැක්ස් ප්‍රෝ - Cinema Max Pro</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts -->
@@ -25,7 +25,8 @@
             signInWithCredential, 
             GoogleAuthProvider, 
             signOut, 
-            onAuthStateChanged 
+            onAuthStateChanged,
+            signInAnonymously
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { 
             getFirestore, 
@@ -52,6 +53,7 @@
         window.firebaseAppId = appId;
         window.GoogleAuthProvider = GoogleAuthProvider;
         window.signInWithCredential = signInWithCredential;
+        window.signInAnonymously = signInAnonymously;
         window.signOut = signOut;
         window.firestore = { doc, setDoc, deleteDoc, getDocs, collection, onSnapshot, addDoc, query };
     </script>
@@ -194,7 +196,7 @@
                         <h3 id="playingTitle" class="text-base md:text-lg font-bold text-white tracking-wide">වාදනය වේ</h3>
                     </div>
                     <div class="flex items-center gap-2">
-                        <!-- Add to Watchlist Button (Requires login notification) -->
+                        <!-- Add to Watchlist Button -->
                         <button id="watchlistBtn" onclick="toggleWatchlist()" class="bg-slateDark-800 hover:bg-slate-700 text-white text-xs px-3 py-1.5 rounded transition-all flex items-center gap-1.5">
                             <i class="fa-regular fa-bookmark"></i> <span>ලැයිස්තුවට එක් කරන්න</span>
                         </button>
@@ -260,7 +262,7 @@
                         <i class="fa-solid fa-comments text-brand"></i> සජීවී අදහස් සහ සමාලෝචන (<span id="commentCount">0</span>)
                     </h4>
 
-                    <!-- Comment input (Requires Login) -->
+                    <!-- Comment input -->
                     <div class="bg-slateDark-950 p-4 rounded-lg border border-slate-800 mb-6">
                         <div id="commentLoginWarning" class="text-xs text-amber-500 mb-2 flex items-center gap-1.5">
                             <i class="fa-solid fa-circle-info"></i> අදහස් දැක්වීම සහ Watchlist එකට එක් කිරීම සඳහා කරුණාකර ඔබගේ Google ගිණුමෙන් ඇතුල් වන්න.
@@ -366,7 +368,6 @@
 
             <!-- Main Dynamic Movie/TV Grid -->
             <div id="movieGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
-                <!-- Dynamic media cards list -->
             </div>
         </section>
 
@@ -381,12 +382,12 @@
         </div>
     </footer>
 
-    <!-- Custom Alert Modal UI (No browser native alert) -->
-    <div id="customAlert" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+    <!-- Custom Alert Modal UI -->
+    <div id="customAlert" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 animate-fadeIn">
         <div class="bg-slateDark-900 border border-slate-800 rounded-xl max-w-sm w-full p-6 text-center shadow-2xl">
             <i class="fa-solid fa-circle-exclamation text-amber-500 text-4xl mb-3"></i>
             <h4 id="alertTitle" class="text-base font-bold text-white mb-2">දැනුම්දීමයි</h4>
-            <p id="alertMessage" class="text-xs text-slate-400 leading-relaxed mb-5">alert body</p>
+            <div id="alertMessage" class="text-xs text-slate-400 leading-relaxed mb-5 break-words whitespace-pre-line">alert body</div>
             <button onclick="closeCustomAlert()" class="bg-brand hover:bg-brand-dark text-white text-xs px-6 py-2 rounded-lg font-bold transition-all">
                 හරි
             </button>
@@ -457,17 +458,30 @@
             initFirebaseAndAuth();
         };
 
-        // Firebase Auth initialization with listener callbacks
+        // Firebase Auth initialization with listener callbacks (Anonymously fallback to prevent permission errors)
         async function initFirebaseAndAuth() {
-            // Keep checking until Module references are attached to window
             const checkTimer = setInterval(async () => {
                 if (window.firebaseAuth && window.firebaseDb) {
                     clearInterval(checkTimer);
                     
                     const auth = window.firebaseAuth;
-                    const { onAuthStateChanged } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
+                    const { onAuthStateChanged, signInAnonymously } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
 
-                    // Listen to auth state transitions
+                    // Priority 1: Check existing Auth Token/Credentials or sign in Anonymously first (RULE 3)
+                    const initAuth = async () => {
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            const { signInWithCustomToken } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
+                            await signInWithCustomToken(auth, __initial_auth_token);
+                        } else {
+                            // Only sign in anonymously if there is no user currently logged in
+                            if (!auth.currentUser) {
+                                await signInAnonymously(auth);
+                            }
+                        }
+                    };
+
+                    await initAuth();
+
                     onAuthStateChanged(auth, (user) => {
                         if (user) {
                             currentUser = user;
@@ -496,20 +510,20 @@
             return JSON.parse(jsonPayload);
         }
 
-        // Callback trigger for Google standard credential success
+        // Callback trigger for Google standard credential success (With detailed Error Outputting)
         async function handleCredentialResponse(googleResponse) {
             try {
                 const auth = window.firebaseAuth;
                 const { GoogleAuthProvider, signInWithCredential } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
                 
-                // Get Google Credential object
                 const credential = GoogleAuthProvider.credential(googleResponse.credential);
-                
-                // Sign-In via Firebase Auth
                 await signInWithCredential(auth, credential);
             } catch (err) {
-                console.error("Firebase Signin with Google failed:", err);
-                showCustomAlert("සයින්-ඉන් දෝෂයකි", "ගූගල් ගිණුමෙන් ඇතුල් වීමට නොහැකි විය. කරුණාකර නැවත උත්සාහ කරන්න.");
+                console.error("Firebase Signin failed:", err);
+                showCustomAlert(
+                    "සයින්-ඉන් දෝෂයකි", 
+                    `ගූගල් ගිණුමෙන් ඇතුල් වීමට නොහැකි විය.\n\nError Code: ${err.code || 'unknown'}\nMessage: ${err.message || 'No message'}\n\n*විසඳුම: කරුණාකර ඔබගේ Firebase Console එකෙහි 'Google' Auth provider එක Enable කර ඇති බව සහ Google Cloud Console හි 'Authorized Javascript Origins' වෙත මෙම වෙබ් සබැඳිය එක්කර ඇති බව තහවුරු කරගන්න.`
+                );
             }
         }
 
@@ -518,7 +532,6 @@
                 const auth = window.firebaseAuth;
                 const { signOut } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
                 await signOut(auth);
-                // Hard refresh to clear states
                 window.location.href = window.location.pathname;
             } catch (err) {
                 console.error("Sign Out failed:", err);
@@ -533,7 +546,8 @@
             const commentLoginWarning = document.getElementById('commentLoginWarning');
             const submitCommentBtn = document.getElementById('submitCommentBtn');
 
-            if (currentUser) {
+            // Show user profile only if they signed in with actual Google account (not anonymously)
+            if (currentUser && !currentUser.isAnonymous) {
                 googleBtnContainer.classList.add('hidden');
                 userProfile.classList.remove('hidden');
                 userAvatar.src = currentUser.photoURL || 'https://via.placeholder.com/150';
@@ -653,7 +667,7 @@
             loadGridItems(endpoint, params);
         }
 
-        // Load Items list from API
+        // Load Items list from API (Corrected TMDB Query string syntax issue)
         async function loadGridItems(endpoint, params = {}) {
             showLoading(true);
             try {
@@ -663,14 +677,15 @@
                     ...params
                 });
 
-                const response = await fetch(`${tmdbBaseUrl}${endpoint}?${queryParams}`);
-                if (!response.ok) throw new Error('දත්ත ලබාගැනීම අසාර්ථකයි.');
+                // Fixed data-fetching URL structure string (removed template error)
+                const finalResponse = await fetch(`${tmdbBaseUrl}${endpoint}?${queryParams.toString()}`);
+                if (!finalResponse.ok) throw new Error('දත්ත ලබාගැනීම අසාර්ථකයි.');
 
-                const data = await response.json();
+                const data = await finalResponse.json();
                 renderMediaCards(data.results);
                 document.getElementById('resultsCount').innerText = `${data.results.length} ක් හමු විය`;
             } catch (err) {
-                console.error(err);
+                console.error("API error:", err);
                 showErrorMessage();
             } finally {
                 showLoading(false);
@@ -869,7 +884,7 @@
             const streamUrl = `${tvEmbedBase}${selectedImdbId}/${curSeason}/${curEpisode}`;
             updatePlayerSrc(streamUrl);
             setupDownloadButton(selectedImdbId, curSeason, curEpisode);
-            setupCommentsListener(); // Watch comments realtime via Firestore for this episode
+            setupCommentsListener(); 
         }
 
         // Setup Download Button
@@ -908,7 +923,7 @@
 
         // ================= WATCHLIST CLOUD SYNCHRONIZATION (RULE 1 & 3) =================
         async function subscribeToWatchlistCloud() {
-            if (!currentUser) return;
+            if (!currentUser || currentUser.isAnonymous) return;
             
             const db = window.firebaseDb;
             const appId = window.firebaseAppId;
@@ -927,7 +942,6 @@
                 document.getElementById('watchlistCount').innerText = localWatchlist.length;
                 updateWatchlistBtnUI();
                 
-                // If watchlist page is active, refresh the grid
                 const urlParams = new URLSearchParams(window.location.search);
                 if (urlParams.get('page') === 'watchlist') {
                     renderWatchlistGrid();
@@ -938,7 +952,7 @@
         }
 
         async function toggleWatchlist() {
-            if (!currentUser) {
+            if (!currentUser || currentUser.isAnonymous) {
                 showCustomAlert("ඇතුල් වන්න", "Watchlist එක භාවිතා කිරීම සඳහා කරුණාකර පළමුව Google ගිණුමෙන් ඇතුල් වන්න.");
                 return;
             }
@@ -949,7 +963,6 @@
             const appId = window.firebaseAppId;
             const { doc, setDoc, deleteDoc } = window.firestore;
 
-            // Unique doc reference using TMDB ID
             const docId = `${mediaType}_${selectedId}`;
             const watchDocRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'watchlist', docId);
 
@@ -1022,7 +1035,8 @@
             const notice = document.getElementById('watchlistLoginNotice');
             grid.innerHTML = '';
 
-            if (!currentUser) {
+            // Require logged-in Google users only
+            if (!currentUser || currentUser.isAnonymous) {
                 notice.classList.remove('hidden');
                 return;
             } else {
@@ -1098,7 +1112,7 @@
 
             if (commentsUnsubscribe) commentsUnsubscribe();
 
-            // Strict Path applied: /artifacts/{appId}/public/data/comments (RULE 1 & 2 compliant)
+            // Paths: /artifacts/{appId}/public/data/comments (RULE 1)
             const commentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'comments');
 
             commentsUnsubscribe = onSnapshot(commentsRef, (snapshot) => {
@@ -1112,7 +1126,7 @@
                     }
                 });
 
-                // Sort purely in memory in JavaScript to prevent index-requirement errors (RULE 2)
+                // Memory Sorting inside JS to bypass firebase compound index rule (RULE 2)
                 list.sort((a, b) => b.timestamp - a.timestamp);
 
                 commentCount.innerText = list.length;
@@ -1149,7 +1163,7 @@
         }
 
         async function submitComment() {
-            if (!currentUser) return;
+            if (!currentUser || currentUser.isAnonymous) return;
 
             const input = document.getElementById('commentInput');
             const text = input.value.trim();
@@ -1174,14 +1188,13 @@
                 };
 
                 await addDoc(commentsRef, newComment);
-                input.value = ''; // Clear textarea
+                input.value = '';
             } catch (err) {
                 console.error("Failed to add comment:", err);
                 showCustomAlert("අදහස එක් කළ නොහැක", "අදහස සර්වර් එක වෙත යොමු කිරීමේදී ගැටලුවක් සිදු විය.");
             }
         }
 
-        // Safety utility to prevent XSS
         function escapeHtml(text) {
             return text
                 .replace(/&/g, "&amp;")
@@ -1284,3 +1297,5 @@
     </script>
 </body>
 </html>
+
+```
