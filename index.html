@@ -1,0 +1,1286 @@
+
+<!DOCTYPE html>
+<html lang="si">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>සිනමා මැක්ස් ප්‍රෝ - Cloud Streaming</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+Sinhala:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Identity Services Library -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+    <!-- Firebase App and Services via CDN -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { 
+            getAuth, 
+            signInWithCredential, 
+            GoogleAuthProvider, 
+            signOut, 
+            onAuthStateChanged 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, 
+            doc, 
+            setDoc, 
+            deleteDoc, 
+            getDocs, 
+            collection, 
+            onSnapshot, 
+            addDoc,
+            query 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global Firebase Config and App State Init
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        // Share modules with window for global access
+        window.firebaseAuth = auth;
+        window.firebaseDb = db;
+        window.firebaseAppId = appId;
+        window.GoogleAuthProvider = GoogleAuthProvider;
+        window.signInWithCredential = signInWithCredential;
+        window.signOut = signOut;
+        window.firestore = { doc, setDoc, deleteDoc, getDocs, collection, onSnapshot, addDoc, query };
+    </script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'Noto Sans Sinhala', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            light: '#3b82f6',
+                            DEFAULT: '#2563eb',
+                            dark: '#1d4ed8'
+                        },
+                        slateDark: {
+                            950: '#090d16',
+                            900: '#0f172a',
+                            800: '#1e293b',
+                            700: '#334155'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #090d16;
+            font-family: 'Inter', 'Noto Sans Sinhala', sans-serif;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3b82f6;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="text-slate-100 min-h-screen flex flex-col justify-between">
+
+    <!-- ශීර්ෂකය (Header) -->
+    <header class="border-b border-slate-800 bg-slateDark-950/90 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row items-center justify-between gap-4">
+            
+            <!-- ලාංඡනය (Logo) -->
+            <div class="flex items-center gap-2 cursor-pointer" onclick="navigateToHome()">
+                <div class="bg-brand p-2 rounded-lg text-white shadow-lg shadow-brand/20">
+                    <i class="fa-solid fa-play text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-black tracking-tight text-white flex items-center gap-1">
+                        CINEMA<span class="text-brand">MAX</span><span class="text-xs bg-amber-500 text-slateDark-950 px-1.5 py-0.5 rounded font-extrabold">CLOUD</span>
+                    </h1>
+                    <p class="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Cloud Synchronized Streaming</p>
+                </div>
+            </div>
+
+            <!-- ප්‍රධාන මෙනුව (Navigation) -->
+            <div class="flex items-center gap-2">
+                <div class="flex gap-1 bg-slateDark-900 p-1 rounded-lg border border-slate-800">
+                    <button id="nav-movie-btn" onclick="switchMediaType('movie')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold text-xs md:text-sm transition-all text-slate-400 hover:text-white">
+                        <i class="fa-solid fa-film"></i> චිත්‍රපට
+                    </button>
+                    <button id="nav-tv-btn" onclick="switchMediaType('tv')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold text-xs md:text-sm transition-all text-slate-400 hover:text-white">
+                        <i class="fa-solid fa-tv"></i> ටෙලි කථාමාලා
+                    </button>
+                    <button id="nav-watchlist-btn" onclick="showWatchlistPage()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold text-xs md:text-sm transition-all text-slate-400 hover:text-white">
+                        <i class="fa-solid fa-bookmark text-amber-500"></i> මගේ ලැයිස්තුව (<span id="watchlistCount">0</span>)
+                    </button>
+                </div>
+            </div>
+
+            <!-- ගූගල් සයිනින් සහ පරිශීලක තොරතුරු (User Authentication Section) -->
+            <div class="flex items-center gap-3">
+                <div id="googleBtnContainer">
+                    <!-- Google client ID integration -->
+                    <div id="g_id_onload"
+                         data-client_id="722112872501-3ub8pfn0ffbsge0niu1kct8nrcjjb3gv.apps.googleusercontent.com"
+                         data-callback="handleCredentialResponse"
+                         data-auto_prompt="false">
+                    </div>
+                    <div class="g_id_signin"
+                         data-type="standard"
+                         data-size="medium"
+                         data-theme="filled_blue"
+                         data-text="signin_with"
+                         data-shape="rectangular"
+                         data-logo_alignment="left">
+                    </div>
+                </div>
+                <div id="userProfile" class="hidden flex items-center gap-2 bg-slateDark-900 border border-slate-800 p-1.5 pr-3 rounded-full">
+                    <img id="userAvatar" src="" alt="Avatar" class="w-7 h-7 rounded-full border border-brand">
+                    <span id="userName" class="text-xs font-semibold max-w-[100px] truncate">පරිශීලකයා</span>
+                    <button onclick="handleSignOut()" class="text-slate-400 hover:text-red-500 text-xs pl-1" title="Log Out">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- සෙවුම් කොටස (Search Input Box) -->
+            <div class="w-full md:w-64">
+                <form id="searchForm" class="relative bg-slateDark-900 border border-slate-800 focus-within:border-brand rounded-lg flex items-center px-3 py-1.5 transition-all">
+                    <input type="text" id="searchInput" placeholder="මෙහි සොයන්න..." 
+                        class="w-full bg-transparent outline-none text-xs md:text-sm text-slate-100 placeholder-slate-500">
+                    <button type="submit" class="text-slate-400 hover:text-brand transition-colors">
+                        <i class="fa-solid fa-magnifying-glass text-sm"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </header>
+
+    <!-- ප්‍රධාන අන්තර්ගතය (Main Content Container) -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-6">
+        
+        <!-- ================= පිටුව 1: විස්තර සහ ප්ලේයර් පිටුව (Detail Screen) ================= -->
+        <section id="detailScreen" class="hidden mb-8 animate-fadeIn">
+            <!-- Back Button to Home -->
+            <button onclick="navigateToHome()" class="mb-4 text-slate-400 hover:text-brand transition-colors text-sm flex items-center gap-1.5">
+                <i class="fa-solid fa-arrow-left"></i> නැවත මුල් පිටුවට
+            </button>
+
+            <div class="bg-slateDark-900 border border-slate-800 rounded-xl overflow-hidden p-4 md:p-6 shadow-xl">
+                <!-- Title and Control Bar -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-800">
+                    <div class="flex items-center gap-2">
+                        <span class="flex h-2 w-2 relative">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        </span>
+                        <h3 id="playingTitle" class="text-base md:text-lg font-bold text-white tracking-wide">වාදනය වේ</h3>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <!-- Add to Watchlist Button (Requires login notification) -->
+                        <button id="watchlistBtn" onclick="toggleWatchlist()" class="bg-slateDark-800 hover:bg-slate-700 text-white text-xs px-3 py-1.5 rounded transition-all flex items-center gap-1.5">
+                            <i class="fa-regular fa-bookmark"></i> <span>ලැයිස්තුවට එක් කරන්න</span>
+                        </button>
+                        <button onclick="toggleTheaterMode()" class="bg-slateDark-800 hover:bg-brand hover:text-white text-slate-300 text-xs px-2.5 py-1.5 rounded transition-all flex items-center gap-1">
+                            <i class="fa-solid fa-circle-half-stroke"></i> <span id="theaterModeText">අඳුරු කරන්න</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Video Frame and Side Details Panel -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <!-- Video Iframe Container -->
+                    <div class="lg:col-span-8 bg-black aspect-video rounded-lg overflow-hidden border border-slate-800 shadow-inner relative">
+                        <iframe id="videoPlayer" src="" class="w-full h-full" allowfullscreen frameborder="0" 
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
+                    </div>
+
+                    <!-- Details Panel -->
+                    <div class="lg:col-span-4 flex flex-col justify-between h-full space-y-4">
+                        <div class="space-y-3">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="bg-brand/10 text-brand border border-brand/20 text-xs px-2.5 py-0.5 rounded-full font-bold" id="movieYear">වසර</span>
+                                <span class="bg-slateDark-800 text-slate-300 text-xs px-2.5 py-0.5 rounded-full font-semibold" id="movieRating"><i class="fa-solid fa-star text-amber-500 mr-1"></i>0.0</span>
+                                <span class="bg-slateDark-800 text-slate-300 text-xs px-2.5 py-0.5 rounded-full font-semibold" id="movieLang">භාෂාව</span>
+                            </div>
+
+                            <!-- TV Show Season & Episode Dropdowns (Only shown in TV mode) -->
+                            <div id="tvSelectorContainer" class="hidden bg-slateDark-950 p-4 border border-slate-800 rounded-lg space-y-3">
+                                <h4 class="text-brand font-bold text-xs tracking-wide uppercase flex items-center gap-1.5">
+                                    <i class="fa-solid fa-list-ol"></i> කොටස් තෝරන්න (Select Episode)
+                                </h4>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-[10px] text-slate-400 uppercase mb-1">සීසන් (Season)</label>
+                                        <select id="seasonSelect" onchange="onSeasonChange()" class="w-full bg-slateDark-900 border border-slate-800 text-slate-100 text-xs rounded p-2 focus:outline-none focus:border-brand">
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] text-slate-400 uppercase mb-1">එපිසෝඩ් (Episode)</label>
+                                        <select id="episodeSelect" onchange="onEpisodeChange()" class="w-full bg-slateDark-900 border border-slate-800 text-slate-100 text-xs rounded p-2 focus:outline-none focus:border-brand">
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <p id="movieOverview" class="text-xs md:text-sm text-slate-300 leading-relaxed max-h-40 overflow-y-auto pr-2">
+                                තෝරාගත් සිනමාපටයේ විස්තරය...
+                            </p>
+                        </div>
+
+                        <!-- Configurable Download Button -->
+                        <div class="space-y-3">
+                            <a id="downloadButton" href="#" target="_blank" class="block w-full text-center bg-emerald-600 hover:bg-emerald-500 text-white text-xs md:text-sm font-bold py-3 px-4 rounded-lg transition-all shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-download"></i> <span id="downloadBtnText">බාගත කරගන්න (Download)</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ================= අදහස් දැක්වීමේ පද්ධතිය (Comments System Section) ================= -->
+                <div class="mt-8 pt-6 border-t border-slate-800">
+                    <h4 class="text-base font-bold text-white mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-comments text-brand"></i> සජීවී අදහස් සහ සමාලෝචන (<span id="commentCount">0</span>)
+                    </h4>
+
+                    <!-- Comment input (Requires Login) -->
+                    <div class="bg-slateDark-950 p-4 rounded-lg border border-slate-800 mb-6">
+                        <div id="commentLoginWarning" class="text-xs text-amber-500 mb-2 flex items-center gap-1.5">
+                            <i class="fa-solid fa-circle-info"></i> අදහස් දැක්වීම සහ Watchlist එකට එක් කිරීම සඳහා කරුණාකර ඔබගේ Google ගිණුමෙන් ඇතුල් වන්න.
+                        </div>
+                        <div class="flex gap-3">
+                            <div class="flex-grow">
+                                <textarea id="commentInput" rows="2" placeholder="මෙම සිනමා නිර්මාණය පිළිබඳ ඔබේ අදහස ලියන්න..." 
+                                    class="w-full bg-slateDark-900 border border-slate-800 focus:border-brand rounded-lg p-2.5 text-xs md:text-sm text-slate-100 placeholder-slate-500 outline-none resize-none transition-all"></textarea>
+                            </div>
+                            <button id="submitCommentBtn" onclick="submitComment()" disabled class="bg-brand/50 text-white px-5 py-2 rounded-lg text-xs md:text-sm font-bold self-end hover:bg-brand transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                                යොමු කරන්න
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Comments List -->
+                    <div id="commentsList" class="space-y-4 max-h-80 overflow-y-auto pr-2">
+                        <!-- Dynamic Comments load here from Firestore -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= Watchlist පිටුව (Watchlist Screen) ================= -->
+        <section id="watchlistScreen" class="hidden space-y-6 animate-fadeIn">
+            <div class="flex items-center justify-between">
+                <h3 class="text-base md:text-lg font-bold text-white border-l-4 border-amber-500 pl-2.5 tracking-wide">
+                    මගේ නැරඹුම් ලැයිස්තුව (Google Cloud Synchronized)
+                </h3>
+                <button onclick="navigateToHome()" class="text-slate-400 hover:text-white text-xs md:text-sm">
+                    <i class="fa-solid fa-house mr-1"></i> මුල් පිටුවට
+                </button>
+            </div>
+            
+            <div id="watchlistLoginNotice" class="hidden text-center py-16 bg-slateDark-900 border border-slate-800 rounded-xl">
+                <i class="fa-solid fa-lock text-slate-600 text-4xl mb-3"></i>
+                <h4 class="text-sm font-bold text-slate-300">ලැයිස්තුව නැරඹීමට ලොග් වන්න</h4>
+                <p class="text-xs text-slate-400 max-w-sm mx-auto mt-1">ඔබේ Google ගිණුමට සම්බන්ධ කර ඇති Watchlist එක බැලීමට කරුණාකර ඉහළින්ම ඇති Google Sign In බොත්තම භාවිතා කර ඇතුල් වන්න.</p>
+            </div>
+
+            <!-- Watchlist Grid -->
+            <div id="watchlistGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+                <!-- Watchlist items loaded here from Cloud Firestore -->
+            </div>
+        </section>
+
+        <!-- ================= මුල් පිටුව (Home Screen with List & Filters) ================= -->
+        <section id="homeScreen" class="space-y-6">
+            
+            <!-- පෙරහන් තීරුව (Filters System) -->
+            <div class="bg-slateDark-900 border border-slate-800 rounded-xl p-4 md:p-6 shadow-md">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
+                    <i class="fa-solid fa-sliders"></i> උසස් සෙවුම් පෙරහන් (Filters)
+                </h3>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <!-- Genre Filter -->
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1.5">ප්‍රභේදය (Genre)</label>
+                        <select id="filterGenre" onchange="applyFilters()" class="w-full bg-slateDark-950 border border-slate-800 text-slate-200 text-xs md:text-sm rounded-lg p-2.5 focus:outline-none focus:border-brand">
+                            <option value="">සියල්ල (All Genres)</option>
+                        </select>
+                    </div>
+
+                    <!-- Year Filter -->
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1.5">නිකුත් වූ වසර (Year)</label>
+                        <select id="filterYear" onchange="applyFilters()" class="w-full bg-slateDark-950 border border-slate-800 text-slate-200 text-xs md:text-sm rounded-lg p-2.5 focus:outline-none focus:border-brand">
+                            <option value="">සියලුම වසරවල් (All Years)</option>
+                        </select>
+                    </div>
+
+                    <!-- Language Filter -->
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1.5">භාෂාව (Language)</label>
+                        <select id="filterLanguage" onchange="applyFilters()" class="w-full bg-slateDark-950 border border-slate-800 text-slate-200 text-xs md:text-sm rounded-lg p-2.5 focus:outline-none focus:border-brand">
+                            <option value="">සියලුම භාෂාවන් (All Languages)</option>
+                            <option value="en">English (ඉංග්‍රීසි)</option>
+                            <option value="hi">Hindi (හින්දි)</option>
+                            <option value="ta">Tamil (දෙමළ)</option>
+                            <option value="ja">Japanese (ජපන්)</option>
+                            <option value="ko">Korean (කොරියානු)</option>
+                            <option value="es">Spanish (ස්පාඤ්ඤ)</option>
+                            <option value="fr">French (ප්‍රංශ)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- List Title Area -->
+            <div class="flex items-center justify-between">
+                <h3 id="sectionTitle" class="text-base md:text-lg font-bold text-white border-l-4 border-brand pl-2.5 tracking-wide">
+                    ජනප්‍රිය නිර්මාණ
+                </h3>
+                <span id="resultsCount" class="text-[11px] font-semibold text-slate-400 bg-slateDark-900 border border-slate-800 px-3 py-1 rounded-full">හොයමින්...</span>
+            </div>
+
+            <!-- Loading Spinner Indicator -->
+            <div id="loadingIndicator" class="hidden flex flex-col items-center justify-center py-24 gap-3">
+                <i class="fa-solid fa-spinner text-brand text-3xl animate-spin"></i>
+                <p class="text-slate-400 text-xs md:text-sm">දත්ත සූදානම් කරමින් පවතී...</p>
+            </div>
+
+            <!-- Main Dynamic Movie/TV Grid -->
+            <div id="movieGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+                <!-- Dynamic media cards list -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- පාදකය (Footer) -->
+    <footer class="border-t border-slate-800 bg-slateDark-950 py-6 text-center text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto px-4 space-y-2">
+            <p class="text-slate-400 font-bold tracking-wider">CINEMA MAX PRO</p>
+            <p>මෙහි අඩංගු සියළුම වීඩියෝ දර්ශන, ගූගල් අක්තපත්‍ර සහ බාගත කිරීම් තෙවන පාර්ශවීය සේවාවන් හරහා ක්‍රියාත්මක වේ.</p>
+            <p class="text-slate-600">&copy; 2026 Cinema Max Pro. All Rights Reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Custom Alert Modal UI (No browser native alert) -->
+    <div id="customAlert" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+        <div class="bg-slateDark-900 border border-slate-800 rounded-xl max-w-sm w-full p-6 text-center shadow-2xl">
+            <i class="fa-solid fa-circle-exclamation text-amber-500 text-4xl mb-3"></i>
+            <h4 id="alertTitle" class="text-base font-bold text-white mb-2">දැනුම්දීමයි</h4>
+            <p id="alertMessage" class="text-xs text-slate-400 leading-relaxed mb-5">alert body</p>
+            <button onclick="closeCustomAlert()" class="bg-brand hover:bg-brand-dark text-white text-xs px-6 py-2 rounded-lg font-bold transition-all">
+                හරි
+            </button>
+        </div>
+    </div>
+
+    <!-- JS Logic for Auth, Watchlist, Comments, API, Routing -->
+    <script>
+        // ================= DOWNLOAD URL CONFIGURATION =================
+        const CUSTOM_DOWNLOAD_URL_TEMPLATE = "https://imdbembed.xyz/download?id={IMDB_ID}&season={SEASON}&episode={EPISODE}";
+
+        // API Configurations
+        const apiKey = '2e45f250dd9649f9c4ac88eb2f62a624';
+        const tmdbBaseUrl = 'https://api.themoviedb.org/3';
+        const imageBaseUrl = 'https://image.tmdb.org/t/p/w500';
+        
+        // Video Embed Player Base URLs
+        const movieEmbedBase = 'https://streamimdb.ru/embed/movie/';
+        const tvEmbedBase = 'https://streamimdb.ru/embed/tv/';
+
+        // State Trackers
+        let mediaType = 'movie'; // 'movie' or 'tv'
+        let selectedId = null;
+        let selectedImdbId = null;
+        let selectedItemDetails = null; // Current playing item meta
+        let isTheaterMode = false;
+        
+        // TV Show Details Store
+        let tvSeasonsList = [];
+        let curSeason = 1;
+        let curEpisode = 1;
+
+        // Synchronized database States
+        let currentUser = null;
+        let localWatchlist = [];
+        let commentsUnsubscribe = null;
+        let watchlistUnsubscribe = null;
+
+        // Static Genre Databases
+        const movieGenres = [
+            { id: 28, name: "Action (ක්‍රියාදාම)" },
+            { id: 12, name: "Adventure (වික්‍රමාන්විත)" },
+            { id: 16, name: "Animation (කාටූන්)" },
+            { id: 35, name: "Comedy (හාස්‍යජනක)" },
+            { id: 80, name: "Crime (අපරාධ)" },
+            { id: 18, name: "Drama (නාට්‍යමය)" },
+            { id: 27, name: "Horror (භීතිකා)" },
+            { id: 9648, name: "Mystery (අභිරහස්)" },
+            { id: 10749, name: "Romance (ආදර කතා)" },
+            { id: 878, name: "Sci-Fi (විද්‍යා ප්‍රබන්ධ)" },
+            { id: 53, name: "Thriller (ත්‍රාසජනක)" }
+        ];
+
+        const tvGenres = [
+            { id: 10759, name: "Action & Adventure" },
+            { id: 16, name: "Animation (කාටූන්)" },
+            { id: 35, name: "Comedy (හාස්‍යජනක)" },
+            { id: 80, name: "Crime (අපරාධ)" },
+            { id: 18, name: "Drama (නාට්‍යමය)" },
+            { id: 9648, name: "Mystery (අභිරහස්)" },
+            { id: 10765, name: "Sci-Fi & Fantasy" }
+        ];
+
+        // On Page Load Initiation
+        window.onload = function() {
+            populateYearFilter();
+            initRoutingFromUrl();
+            initFirebaseAndAuth();
+        };
+
+        // Firebase Auth initialization with listener callbacks
+        async function initFirebaseAndAuth() {
+            // Keep checking until Module references are attached to window
+            const checkTimer = setInterval(async () => {
+                if (window.firebaseAuth && window.firebaseDb) {
+                    clearInterval(checkTimer);
+                    
+                    const auth = window.firebaseAuth;
+                    const { onAuthStateChanged } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
+
+                    // Listen to auth state transitions
+                    onAuthStateChanged(auth, (user) => {
+                        if (user) {
+                            currentUser = user;
+                            updateUserUI();
+                            subscribeToWatchlistCloud();
+                        } else {
+                            currentUser = null;
+                            localWatchlist = [];
+                            updateUserUI();
+                            document.getElementById('watchlistCount').innerText = '0';
+                            if (watchlistUnsubscribe) watchlistUnsubscribe();
+                        }
+                    });
+                }
+            }, 100);
+        }
+
+        // Parse Google JWT Token securely
+        function parseJwt(token) {
+            var base64Url = token.split('.')[1];
+            var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            var jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+
+            return JSON.parse(jsonPayload);
+        }
+
+        // Callback trigger for Google standard credential success
+        async function handleCredentialResponse(googleResponse) {
+            try {
+                const auth = window.firebaseAuth;
+                const { GoogleAuthProvider, signInWithCredential } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
+                
+                // Get Google Credential object
+                const credential = GoogleAuthProvider.credential(googleResponse.credential);
+                
+                // Sign-In via Firebase Auth
+                await signInWithCredential(auth, credential);
+            } catch (err) {
+                console.error("Firebase Signin with Google failed:", err);
+                showCustomAlert("සයින්-ඉන් දෝෂයකි", "ගූගල් ගිණුමෙන් ඇතුල් වීමට නොහැකි විය. කරුණාකර නැවත උත්සාහ කරන්න.");
+            }
+        }
+
+        async function handleSignOut() {
+            try {
+                const auth = window.firebaseAuth;
+                const { signOut } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
+                await signOut(auth);
+                // Hard refresh to clear states
+                window.location.href = window.location.pathname;
+            } catch (err) {
+                console.error("Sign Out failed:", err);
+            }
+        }
+
+        function updateUserUI() {
+            const googleBtnContainer = document.getElementById('googleBtnContainer');
+            const userProfile = document.getElementById('userProfile');
+            const userAvatar = document.getElementById('userAvatar');
+            const userName = document.getElementById('userName');
+            const commentLoginWarning = document.getElementById('commentLoginWarning');
+            const submitCommentBtn = document.getElementById('submitCommentBtn');
+
+            if (currentUser) {
+                googleBtnContainer.classList.add('hidden');
+                userProfile.classList.remove('hidden');
+                userAvatar.src = currentUser.photoURL || 'https://via.placeholder.com/150';
+                userName.innerText = currentUser.displayName || 'User';
+
+                if (commentLoginWarning) commentLoginWarning.classList.add('hidden');
+                if (submitCommentBtn) submitCommentBtn.removeAttribute('disabled');
+            } else {
+                googleBtnContainer.classList.remove('hidden');
+                userProfile.classList.add('hidden');
+
+                if (commentLoginWarning) commentLoginWarning.classList.remove('hidden');
+                if (submitCommentBtn) submitCommentBtn.setAttribute('disabled', 'true');
+            }
+            updateWatchlistBtnUI();
+        }
+
+        // Populate Years Dropdown
+        function populateYearFilter() {
+            const yearSelect = document.getElementById('filterYear');
+            const currentYear = 2026;
+            for (let y = currentYear; y >= 1970; y--) {
+                const opt = document.createElement('option');
+                opt.value = y;
+                opt.innerText = y;
+                yearSelect.appendChild(opt);
+            }
+        }
+
+        // Setup Genre list depending on active page type
+        function updateGenreDropdown() {
+            const genreSelect = document.getElementById('filterGenre');
+            genreSelect.innerHTML = '<option value="">සියල්ල (All Genres)</option>';
+            const list = (mediaType === 'movie') ? movieGenres : tvGenres;
+            
+            list.forEach(g => {
+                const opt = document.createElement('option');
+                opt.value = g.id;
+                opt.innerText = g.name;
+                genreSelect.appendChild(opt);
+            });
+        }
+
+        // Check URL Query parameters to decide which screen to load
+        function initRoutingFromUrl() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const mediaId = urlParams.get('id');
+            const urlType = urlParams.get('type');
+            const isWatchlistMode = urlParams.get('page') === 'watchlist';
+
+            if (isWatchlistMode) {
+                showWatchlistPage(true);
+            } else if (mediaId && urlType) {
+                mediaType = urlType;
+                loadDetailsScreen(mediaId, urlType);
+            } else {
+                const activeType = urlParams.get('media_type') || 'movie';
+                mediaType = activeType;
+                showHomeScreen();
+            }
+        }
+
+        // Render Home screen lists and filters
+        function showHomeScreen() {
+            document.getElementById('detailScreen').classList.add('hidden');
+            document.getElementById('watchlistScreen').classList.add('hidden');
+            document.getElementById('homeScreen').classList.remove('hidden');
+            
+            const movieBtn = document.getElementById('nav-movie-btn');
+            const tvBtn = document.getElementById('nav-tv-btn');
+            const watchlistBtn = document.getElementById('nav-watchlist-btn');
+
+            watchlistBtn.className = "flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold text-xs md:text-sm transition-all text-slate-400 hover:text-white";
+
+            if (mediaType === 'movie') {
+                movieBtn.className = "flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold text-xs md:text-sm transition-all bg-brand text-white shadow";
+                tvBtn.className = "flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold text-xs md:text-sm transition-all text-slate-400 hover:text-white";
+                document.getElementById('sectionTitle').innerText = "ජනප්‍රිය චිත්‍රපට (Popular Movies)";
+            } else {
+                tvBtn.className = "flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold text-xs md:text-sm transition-all bg-brand text-white shadow";
+                movieBtn.className = "flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold text-xs md:text-sm transition-all text-slate-400 hover:text-white";
+                document.getElementById('sectionTitle').innerText = "ජනප්‍රිය ටෙලි කථාමාලා (Popular TV Shows)";
+            }
+
+            updateGenreDropdown();
+            applyFilters();
+        }
+
+        // Switch Active Media Type via page reload
+        function switchMediaType(type) {
+            window.location.href = `${window.location.pathname}?media_type=${type}`;
+        }
+
+        // Dynamic Filtering from UI selectors
+        function applyFilters() {
+            const genre = document.getElementById('filterGenre').value;
+            const year = document.getElementById('filterYear').value;
+            const language = document.getElementById('filterLanguage').value;
+
+            let endpoint = `/${mediaType}/popular`;
+            let params = {};
+
+            if (genre || year || language) {
+                endpoint = `/discover/${mediaType}`;
+                if (genre) params.with_genres = genre;
+                if (language) params.with_original_language = language;
+
+                if (year) {
+                    if (mediaType === 'movie') {
+                        params.primary_release_year = year;
+                    } else {
+                        params.first_air_date_year = year;
+                    }
+                }
+            }
+
+            loadGridItems(endpoint, params);
+        }
+
+        // Load Items list from API
+        async function loadGridItems(endpoint, params = {}) {
+            showLoading(true);
+            try {
+                let queryParams = new URLSearchParams({
+                    api_key: apiKey,
+                    language: 'en-US',
+                    ...params
+                });
+
+                const response = await fetch(`${tmdbBaseUrl}${endpoint}?${queryParams}`);
+                if (!response.ok) throw new Error('දත්ත ලබාගැනීම අසාර්ථකයි.');
+
+                const data = await response.json();
+                renderMediaCards(data.results);
+                document.getElementById('resultsCount').innerText = `${data.results.length} ක් හමු විය`;
+            } catch (err) {
+                console.error(err);
+                showErrorMessage();
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Render sleek media cards on grid layout
+        function renderMediaCards(items) {
+            const grid = document.getElementById('movieGrid');
+            grid.innerHTML = '';
+
+            if (!items || items.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full text-center py-16 text-slate-400">
+                        <i class="fa-solid fa-folder-open text-3xl mb-2"></i>
+                        <p class="text-xs md:text-sm">කිසිදු නිර්මාණයක් සොයාගත නොහැකි විය. වෙනත් තේරීමක් කර බලන්න.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            items.forEach(item => {
+                if (!item.poster_path) return;
+
+                const title = item.title || item.name;
+                const release = item.release_date || item.first_air_date || '';
+                const year = release ? release.split('-')[0] : 'පැරණි';
+
+                const card = document.createElement('div');
+                card.className = "group cursor-pointer bg-slateDark-900 border border-slate-800 hover:border-brand rounded-lg overflow-hidden transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg shadow-black/40";
+                
+                card.onclick = () => {
+                    window.location.href = `?id=${item.id}&type=${mediaType}`;
+                };
+
+                card.innerHTML = `
+                    <div class="relative overflow-hidden aspect-[2/3] bg-slateDark-950">
+                        <img src="${imageBaseUrl}${item.poster_path}" alt="${title}" 
+                             class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                             onerror="this.src='https://via.placeholder.com/500x750?text=No+Poster'">
+                        <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                            <div class="w-10 h-10 rounded-full bg-brand text-white flex items-center justify-center text-sm shadow-lg transform scale-75 group-hover:scale-100 transition-transform duration-300">
+                                <i class="fa-solid fa-play ml-0.5"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-3">
+                        <h4 class="font-bold text-xs md:text-sm text-slate-200 group-hover:text-brand transition-colors truncate" title="${title}">
+                            ${title}
+                        </h4>
+                        <div class="flex items-center justify-between mt-1 text-[11px] text-slate-400">
+                            <span>${year}</span>
+                            <span class="text-amber-500 font-bold flex items-center gap-0.5">
+                                <i class="fa-solid fa-star text-[10px]"></i> ${item.vote_average ? item.vote_average.toFixed(1) : '0.0'}
+                            </span>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // Load details, video embed frame & comments
+        async function loadDetailsScreen(id, type) {
+            document.getElementById('homeScreen').classList.add('hidden');
+            document.getElementById('watchlistScreen').classList.add('hidden');
+            const detailScreen = document.getElementById('detailScreen');
+            detailScreen.classList.remove('hidden');
+
+            const playingTitle = document.getElementById('playingTitle');
+            const movieOverview = document.getElementById('movieOverview');
+            const movieYear = document.getElementById('movieYear');
+            const movieRating = document.getElementById('movieRating');
+            const movieLang = document.getElementById('movieLang');
+            const tvSelectorContainer = document.getElementById('tvSelectorContainer');
+            
+            selectedId = id;
+            playingTitle.innerText = "ලෝඩ් වෙමින් පවතී...";
+            resetPlayer();
+            updateWatchlistBtnUI();
+
+            try {
+                // Fetch TMDB External IDs to obtain raw IMDb ID
+                const idResponse = await fetch(`${tmdbBaseUrl}/${type}/${id}/external_ids?api_key=${apiKey}`);
+                const idData = await idResponse.json();
+                selectedImdbId = idData.imdb_id;
+
+                if (!selectedImdbId) {
+                    throw new Error("IMDb ID එක සොයාගත නොහැක.");
+                }
+
+                // Fetch Media detailed metadata
+                const detailsResponse = await fetch(`${tmdbBaseUrl}/${type}/${id}?api_key=${apiKey}`);
+                const details = await detailsResponse.json();
+                selectedItemDetails = details;
+
+                const title = details.title || details.name;
+                playingTitle.innerText = title;
+                movieOverview.innerText = details.overview || "කථා සාරාංශයක් නොමැත.";
+                movieYear.innerText = (details.release_date || details.first_air_date || 'N/A').split('-')[0];
+                movieRating.innerHTML = `<i class="fa-solid fa-star text-amber-500 mr-1"></i>${details.vote_average ? details.vote_average.toFixed(1) : 'N/A'}`;
+                movieLang.innerText = details.original_language ? details.original_language.toUpperCase() : 'EN';
+
+                if (type === 'movie') {
+                    tvSelectorContainer.classList.add('hidden');
+                    updatePlayerSrc(`${movieEmbedBase}${selectedImdbId}`);
+                    setupDownloadButton(selectedImdbId, null, null);
+                    setupCommentsListener(); // Watch comments realtime via Firestore
+                } else {
+                    tvSelectorContainer.classList.remove('hidden');
+                    tvSeasonsList = details.seasons || [];
+                    buildSeasonDropdown();
+                }
+
+                detailScreen.scrollIntoView({ behavior: 'smooth' });
+
+            } catch (err) {
+                console.error(err);
+                playingTitle.innerText = "දෝෂයකි - වාදනය කල නොහැක";
+                movieOverview.innerText = "මෙම නිර්මාණයේ IMDb සබැඳිය සොයා ගැනීමට නොහැකි විය. වෙනත් එකක් තෝරන්න.";
+                disableDownloadButton();
+            }
+        }
+
+        // Build season options inside dropdown
+        function buildSeasonDropdown() {
+            const seasonSelect = document.getElementById('seasonSelect');
+            seasonSelect.innerHTML = '';
+
+            const validSeasons = tvSeasonsList.filter(s => s.season_number > 0);
+
+            if (validSeasons.length === 0 && tvSeasonsList.length > 0) {
+                validSeasons.push(tvSeasonsList[0]);
+            }
+
+            validSeasons.forEach(season => {
+                const opt = document.createElement('option');
+                opt.value = season.season_number;
+                opt.innerText = `Season ${season.season_number} (${season.episode_count} Ep)`;
+                seasonSelect.appendChild(opt);
+            });
+
+            if (validSeasons.length > 0) {
+                seasonSelect.value = validSeasons[0].season_number;
+                onSeasonChange();
+            }
+        }
+
+        // Fetch Episode list on Season Dropdown change
+        async function onSeasonChange() {
+            const seasonNum = document.getElementById('seasonSelect').value;
+            curSeason = parseInt(seasonNum);
+            
+            const episodeSelect = document.getElementById('episodeSelect');
+            episodeSelect.innerHTML = '<option>ලෝඩ් වෙමින්...</option>';
+
+            try {
+                const response = await fetch(`${tmdbBaseUrl}/tv/${selectedId}/season/${curSeason}?api_key=${apiKey}`);
+                const seasonData = await response.json();
+                
+                episodeSelect.innerHTML = '';
+                if (seasonData.episodes && seasonData.episodes.length > 0) {
+                    seasonData.episodes.forEach(ep => {
+                        const opt = document.createElement('option');
+                        opt.value = ep.episode_number;
+                        opt.innerText = `Episode ${ep.episode_number}: ${ep.name || 'Episode ' + ep.episode_number}`;
+                        episodeSelect.appendChild(opt);
+                    });
+                    
+                    curEpisode = 1;
+                    episodeSelect.value = 1;
+                    playTvEpisode();
+                } else {
+                    episodeSelect.innerHTML = '<option value="">කොටස් නැත</option>';
+                    disableDownloadButton();
+                }
+            } catch (err) {
+                console.error(err);
+                episodeSelect.innerHTML = '<option value="">දත්ත ලබාගැනීම අසාර්ථකයි</option>';
+                disableDownloadButton();
+            }
+        }
+
+        // On Episode dropdown change
+        function onEpisodeChange() {
+            const epNum = document.getElementById('episodeSelect').value;
+            if (epNum) {
+                curEpisode = parseInt(epNum);
+                playTvEpisode();
+            }
+        }
+
+        // Configure player for selected episode
+        function playTvEpisode() {
+            if (!selectedImdbId) return;
+            const streamUrl = `${tvEmbedBase}${selectedImdbId}/${curSeason}/${curEpisode}`;
+            updatePlayerSrc(streamUrl);
+            setupDownloadButton(selectedImdbId, curSeason, curEpisode);
+            setupCommentsListener(); // Watch comments realtime via Firestore for this episode
+        }
+
+        // Setup Download Button
+        function setupDownloadButton(imdbId, season, episode) {
+            const dlBtn = document.getElementById('downloadButton');
+            const dlText = document.getElementById('downloadBtnText');
+            
+            dlBtn.classList.remove('opacity-50', 'pointer-events-none');
+
+            let finalDownloadUrl = CUSTOM_DOWNLOAD_URL_TEMPLATE
+                .replace('{IMDB_ID}', imdbId || '')
+                .replace('{SEASON}', season || '1')
+                .replace('{EPISODE}', episode || '1');
+
+            dlBtn.href = finalDownloadUrl;
+
+            if (mediaType === 'movie') {
+                dlText.innerText = "බාගත කරගන්න (Download Movie)";
+            } else {
+                dlText.innerText = `S${season}:E${episode} කොටස බාගත කරන්න`;
+            }
+        }
+
+        function disableDownloadButton() {
+            const dlBtn = document.getElementById('downloadButton');
+            const dlText = document.getElementById('downloadBtnText');
+            dlBtn.href = "#";
+            dlBtn.classList.add('opacity-50', 'pointer-events-none');
+            dlText.innerText = "බාගත කිරීම් සක්‍රීය නැත";
+        }
+
+        // Navigate back to Main Listing screen
+        function navigateToHome() {
+            window.location.href = window.location.pathname;
+        }
+
+        // ================= WATCHLIST CLOUD SYNCHRONIZATION (RULE 1 & 3) =================
+        async function subscribeToWatchlistCloud() {
+            if (!currentUser) return;
+            
+            const db = window.firebaseDb;
+            const appId = window.firebaseAppId;
+            const { collection, onSnapshot } = window.firestore;
+
+            // Strict Path applied: /artifacts/{appId}/users/{userId}/watchlist (RULE 1)
+            const watchlistRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'watchlist');
+
+            if (watchlistUnsubscribe) watchlistUnsubscribe();
+
+            watchlistUnsubscribe = onSnapshot(watchlistRef, (snapshot) => {
+                localWatchlist = [];
+                snapshot.forEach(doc => {
+                    localWatchlist.push(doc.data());
+                });
+                document.getElementById('watchlistCount').innerText = localWatchlist.length;
+                updateWatchlistBtnUI();
+                
+                // If watchlist page is active, refresh the grid
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get('page') === 'watchlist') {
+                    renderWatchlistGrid();
+                }
+            }, (error) => {
+                console.error("Watchlist loading failed:", error);
+            });
+        }
+
+        async function toggleWatchlist() {
+            if (!currentUser) {
+                showCustomAlert("ඇතුල් වන්න", "Watchlist එක භාවිතා කිරීම සඳහා කරුණාකර පළමුව Google ගිණුමෙන් ඇතුල් වන්න.");
+                return;
+            }
+
+            if (!selectedId || !selectedItemDetails) return;
+
+            const db = window.firebaseDb;
+            const appId = window.firebaseAppId;
+            const { doc, setDoc, deleteDoc } = window.firestore;
+
+            // Unique doc reference using TMDB ID
+            const docId = `${mediaType}_${selectedId}`;
+            const watchDocRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'watchlist', docId);
+
+            const exists = localWatchlist.some(item => item.id == selectedId && item.type == mediaType);
+
+            try {
+                if (exists) {
+                    await deleteDoc(watchDocRef);
+                } else {
+                    const newItem = {
+                        docId: docId,
+                        id: selectedId,
+                        type: mediaType,
+                        title: selectedItemDetails.title || selectedItemDetails.name,
+                        poster_path: selectedItemDetails.poster_path,
+                        vote_average: selectedItemDetails.vote_average || 0,
+                        release_date: selectedItemDetails.release_date || selectedItemDetails.first_air_date || ''
+                    };
+                    await setDoc(watchDocRef, newItem);
+                }
+            } catch (err) {
+                console.error("Watchlist sync error:", err);
+                showCustomAlert("සින්ක් කිරීමට නොහැකි විය", "Watchlist එක යාවත්කාලීන කිරීමේදී දෝෂයක් සිදු විය.");
+            }
+        }
+
+        function updateWatchlistBtnUI() {
+            const btn = document.getElementById('watchlistBtn');
+            if (!btn || !selectedId) return;
+
+            const exists = localWatchlist.some(item => item.id == selectedId && item.type == mediaType);
+
+            if (exists) {
+                btn.innerHTML = `<i class="fa-solid fa-bookmark text-amber-500"></i> <span>ලැයිස්තුවෙන් ඉවත් කරන්න</span>`;
+                btn.className = "bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-xs px-3 py-1.5 rounded transition-all flex items-center gap-1.5 border border-amber-500/30";
+            } else {
+                btn.innerHTML = `<i class="fa-regular fa-bookmark"></i> <span>ලැයිස්තුවට එක් කරන්න</span>`;
+                btn.className = "bg-slateDark-800 hover:bg-slate-700 text-white text-xs px-3 py-1.5 rounded transition-all flex items-center gap-1.5";
+            }
+        }
+
+        function showWatchlistPage(skipPush = false) {
+            if (!skipPush) {
+                const url = new URL(window.location);
+                url.searchParams.set('page', 'watchlist');
+                url.searchParams.delete('id');
+                url.searchParams.delete('type');
+                window.history.pushState({}, '', url);
+            }
+
+            document.getElementById('homeScreen').classList.add('hidden');
+            document.getElementById('detailScreen').classList.add('hidden');
+            
+            const watchlistScreen = document.getElementById('watchlistScreen');
+            watchlistScreen.classList.remove('hidden');
+
+            const movieBtn = document.getElementById('nav-movie-btn');
+            const tvBtn = document.getElementById('nav-tv-btn');
+            const watchlistBtn = document.getElementById('nav-watchlist-btn');
+
+            watchlistBtn.className = "flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold text-xs md:text-sm transition-all bg-amber-500 text-slateDark-950 font-bold shadow";
+            movieBtn.className = "flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold text-xs md:text-sm transition-all text-slate-400 hover:text-white";
+            tvBtn.className = "flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold text-xs md:text-sm transition-all text-slate-400 hover:text-white";
+
+            renderWatchlistGrid();
+        }
+
+        function renderWatchlistGrid() {
+            const grid = document.getElementById('watchlistGrid');
+            const notice = document.getElementById('watchlistLoginNotice');
+            grid.innerHTML = '';
+
+            if (!currentUser) {
+                notice.classList.remove('hidden');
+                return;
+            } else {
+                notice.classList.add('hidden');
+            }
+
+            if (localWatchlist.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full text-center py-20 text-slate-400">
+                        <i class="fa-regular fa-bookmark text-4xl mb-3 text-slate-600"></i>
+                        <p class="text-sm">ඔබගේ Cloud Watchlist එකේ කිසිදු චිත්‍රපටයක් නොමැත.</p>
+                        <button onclick="navigateToHome()" class="mt-4 bg-brand text-white text-xs px-4 py-2 rounded-lg font-bold hover:bg-brand-dark transition-all">
+                            දැන්ම එකතු කරන්න
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            localWatchlist.forEach(item => {
+                const year = item.release_date ? item.release_date.split('-')[0] : 'පැරණි';
+                const card = document.createElement('div');
+                card.className = "group cursor-pointer bg-slateDark-900 border border-slate-800 hover:border-brand rounded-lg overflow-hidden transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg shadow-black/40";
+                
+                card.onclick = () => {
+                    window.location.href = `?id=${item.id}&type=${item.type}`;
+                };
+
+                card.innerHTML = `
+                    <div class="relative overflow-hidden aspect-[2/3] bg-slateDark-950">
+                        <img src="${imageBaseUrl}${item.poster_path}" alt="${item.title}" 
+                             class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                             onerror="this.src='https://via.placeholder.com/500x750?text=No+Poster'">
+                        <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                            <div class="w-10 h-10 rounded-full bg-brand text-white flex items-center justify-center text-sm shadow-lg transform scale-75 group-hover:scale-100 transition-transform duration-300">
+                                <i class="fa-solid fa-play ml-0.5"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-3">
+                        <h4 class="font-bold text-xs md:text-sm text-slate-200 group-hover:text-brand transition-colors truncate" title="${item.title}">
+                            ${item.title}
+                        </h4>
+                        <div class="flex items-center justify-between mt-1 text-[11px] text-slate-400">
+                            <span>${year}</span>
+                            <span class="text-amber-500 font-bold flex items-center gap-0.5">
+                                <i class="fa-solid fa-star text-[10px]"></i> ${item.vote_average ? item.vote_average.toFixed(1) : '0.0'}
+                            </span>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // ================= CLOUD REALTIME COMMENTS SYSTEM (RULE 1 & 2) =================
+        function getCommentIdentifier() {
+            if (mediaType === 'movie') {
+                return `movie_${selectedId}`;
+            } else {
+                return `tv_${selectedId}_s${curSeason}_e${curEpisode}`;
+            }
+        }
+
+        async function setupCommentsListener() {
+            const commentsList = document.getElementById('commentsList');
+            const commentCount = document.getElementById('commentCount');
+            commentsList.innerHTML = '';
+
+            const db = window.firebaseDb;
+            const appId = window.firebaseAppId;
+            const { collection, onSnapshot } = window.firestore;
+
+            if (commentsUnsubscribe) commentsUnsubscribe();
+
+            // Strict Path applied: /artifacts/{appId}/public/data/comments (RULE 1 & 2 compliant)
+            const commentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'comments');
+
+            commentsUnsubscribe = onSnapshot(commentsRef, (snapshot) => {
+                let list = [];
+                const currentId = getCommentIdentifier();
+
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    if (data.mediaKey === currentId) {
+                        list.push(data);
+                    }
+                });
+
+                // Sort purely in memory in JavaScript to prevent index-requirement errors (RULE 2)
+                list.sort((a, b) => b.timestamp - a.timestamp);
+
+                commentCount.innerText = list.length;
+
+                if (list.length === 0) {
+                    commentsList.innerHTML = `
+                        <div class="text-center py-8 text-slate-500 text-xs">
+                            <i class="fa-regular fa-comment-dots text-lg mb-1"></i>
+                            <p>තවමත් අදහස් කිසිවක් නොමැත. පළමු අදහස ඔබේ කරන්න!</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                commentsList.innerHTML = '';
+                list.forEach(comment => {
+                    const card = document.createElement('div');
+                    card.className = "flex gap-3 bg-slateDark-950 p-3 rounded-lg border border-slate-800/60 animate-fadeIn";
+                    card.innerHTML = `
+                        <img src="${comment.avatar}" alt="${comment.userName}" class="w-8 h-8 rounded-full border border-slate-700">
+                        <div class="flex-grow">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-slate-300">${comment.userName}</span>
+                                <span class="text-[10px] text-slate-500">${comment.date}</span>
+                            </div>
+                            <p class="text-xs text-slate-300 mt-1 leading-relaxed">${escapeHtml(comment.text)}</p>
+                        </div>
+                    `;
+                    commentsList.appendChild(card);
+                });
+            }, (error) => {
+                console.error("Comments subscription failed:", error);
+            });
+        }
+
+        async function submitComment() {
+            if (!currentUser) return;
+
+            const input = document.getElementById('commentInput');
+            const text = input.value.trim();
+
+            if (!text) return;
+
+            const db = window.firebaseDb;
+            const appId = window.firebaseAppId;
+            const { collection, addDoc } = window.firestore;
+
+            try {
+                const commentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'comments');
+                
+                const newComment = {
+                    mediaKey: getCommentIdentifier(),
+                    userId: currentUser.uid,
+                    userName: currentUser.displayName,
+                    avatar: currentUser.photoURL || 'https://via.placeholder.com/150',
+                    text: text,
+                    timestamp: Date.now(),
+                    date: new Date().toLocaleDateString('si-LK', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                };
+
+                await addDoc(commentsRef, newComment);
+                input.value = ''; // Clear textarea
+            } catch (err) {
+                console.error("Failed to add comment:", err);
+                showCustomAlert("අදහස එක් කළ නොහැක", "අදහස සර්වර් එක වෙත යොමු කිරීමේදී ගැටලුවක් සිදු විය.");
+            }
+        }
+
+        // Safety utility to prevent XSS
+        function escapeHtml(text) {
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // Search submit listener (keyboard closes automatically)
+        document.getElementById('searchForm').onsubmit = function(e) {
+            e.preventDefault();
+            const query = document.getElementById('searchInput').value.trim();
+            
+            const searchInput = document.getElementById('searchInput');
+            searchInput.blur(); 
+            if (document.activeElement) {
+                document.activeElement.blur();
+            }
+
+            if (query) {
+                document.getElementById('sectionTitle').innerText = `"${query}" සඳහා සෙවුම් ප්‍රතිඵල`;
+                loadGridItems(`/search/${mediaType}`, { query: query });
+            } else {
+                showHomeScreen();
+            }
+        };
+
+        // Custom modal alerts instead of browser alerts
+        function showCustomAlert(title, msg) {
+            document.getElementById('alertTitle').innerText = title;
+            document.getElementById('alertMessage').innerText = msg;
+            document.getElementById('customAlert').classList.remove('hidden');
+        }
+
+        function closeCustomAlert() {
+            document.getElementById('customAlert').classList.add('hidden');
+        }
+
+        // Player Source Controllers
+        function updatePlayerSrc(url) {
+            document.getElementById('videoPlayer').src = url;
+        }
+
+        // Reset Player
+        function resetPlayer() {
+            document.getElementById('videoPlayer').src = '';
+        }
+
+        // Theater Dim Mode Toggle
+        function toggleTheaterMode() {
+            const body = document.body;
+            const header = document.querySelector('header');
+            const footer = document.querySelector('footer');
+            const homeScreen = document.getElementById('homeScreen');
+            const textSpan = document.getElementById('theaterModeText');
+
+            isTheaterMode = !isTheaterMode;
+
+            if (isTheaterMode) {
+                body.style.backgroundColor = '#020408';
+                header.classList.add('opacity-10');
+                footer.classList.add('opacity-10');
+                if (homeScreen) homeScreen.classList.add('opacity-10');
+                textSpan.innerText = "ආලෝකය දල්වන්න";
+            } else {
+                body.style.backgroundColor = '#090d16';
+                header.classList.remove('opacity-10');
+                footer.classList.remove('opacity-10');
+                if (homeScreen) homeScreen.classList.remove('opacity-10');
+                textSpan.innerText = "අඳුරු කරන්න";
+            }
+        }
+
+        // Load Indicator Helpers
+        function showLoading(state) {
+            const loader = document.getElementById('loadingIndicator');
+            const grid = document.getElementById('movieGrid');
+            if (state) {
+                loader.classList.remove('hidden');
+                grid.classList.add('opacity-30');
+            } else {
+                loader.classList.add('hidden');
+                grid.classList.remove('opacity-30');
+            }
+        }
+
+        function showErrorMessage() {
+            const grid = document.getElementById('movieGrid');
+            grid.innerHTML = `
+                <div class="col-span-full text-center py-12">
+                    <div class="inline-block bg-red-950/20 border border-red-900/40 p-6 rounded-lg max-w-md">
+                        <i class="fa-solid fa-triangle-exclamation text-red-500 text-3xl mb-3"></i>
+                        <h4 class="text-base font-bold text-red-400 mb-2">ජාල දෝෂයකි!</h4>
+                        <p class="text-xs text-slate-400">චිත්‍රපට දත්ත ලබා ගැනීමට නොහැකි විය. කරුණාකර නැවත උත්සාහ කරන්න.</p>
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
