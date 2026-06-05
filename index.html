@@ -4,9 +4,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cinema Max</title>
+    <title>Flixo Cinema</title>
     
     <link rel="icon" type="image/png" href="favicon.png">
+    
+    <!--ad1-->
+    <script src="https://pl29574916.effectivecpmnetwork.com/a3/e0/94/a3e09464ab8f273425267f29eb3344c0.js"></script>
+
+<!--ad2-->
+<script src="https://pl29574916.effectivecpmnetwork.com/a3/e0/94/a3e09464ab8f273425267f29eb3344c0.js"></script>
+
+<!--ad3-->
+<script src="https://pl26311798.effectivecpmnetwork.com/c9/aa/ad/c9aaad3dab1b281d6cd64c1a3b047ad5.js"></script>
+
     
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -73,7 +83,7 @@
                 </div>
                 <div>
                     <h1 class="text-xl font-black tracking-tight text-white flex items-center gap-1">
-                        CINEMA<span class="text-brand">MAX</span>
+                        Flixo<span class="text-brand">Cinema</span>
                     </h1>
                     <p class="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Unlimited Streaming</p>
                 </div>
@@ -109,6 +119,10 @@
             <!-- Back Button to Home -->
             <button onclick="navigateToHome()" class="mb-4 text-slate-400 hover:text-brand transition-colors text-sm flex items-center gap-1.5">
                 <i class="fa-solid fa-arrow-left"></i>Back</button>
+                
+                <!--ad4-->
+                <script src="https://pl26311798.effectivecpmnetwork.com/c9/aa/ad/c9aaad3dab1b281d6cd64c1a3b047ad5.js"></script>
+
 
             <div class="bg-slateDark-900 border border-slate-800 rounded-xl overflow-hidden p-4 md:p-6 shadow-xl">
                 <!-- Title and Control Bar -->
@@ -147,17 +161,17 @@
                             <!-- TV Show Season & Episode Dropdowns (Only shown in TV mode) -->
                             <div id="tvSelectorContainer" class="hidden bg-slateDark-950 p-4 border border-slate-800 rounded-lg space-y-3">
                                 <h4 class="text-brand font-bold text-xs tracking-wide uppercase flex items-center gap-1.5">
-                                    <i class="fa-solid fa-list-ol"></i> කොටස් තෝරන්න (Select Episode)
+                                    <i class="fa-solid fa-list-ol"></i>Select Episode
                                 </h4>
                                 <div class="grid grid-cols-2 gap-2">
                                     <div>
-                                        <label class="block text-[10px] text-slate-400 uppercase mb-1">සීසන් (Season)</label>
+                                        <label class="block text-[10px] text-slate-400 uppercase mb-1">Season</label>
                                         <select id="seasonSelect" onchange="onSeasonChange()" class="w-full bg-slateDark-900 border border-slate-800 text-slate-100 text-xs rounded p-2 focus:outline-none focus:border-brand">
                                             <!-- Seasons option list loads here -->
                                         </select>
                                     </div>
                                     <div>
-                                        <label class="block text-[10px] text-slate-400 uppercase mb-1">එපිසෝඩ් (Episode)</label>
+                                        <label class="block text-[10px] text-slate-400 uppercase mb-1">Episode</label>
                                         <select id="episodeSelect" onchange="onEpisodeChange()" class="w-full bg-slateDark-900 border border-slate-800 text-slate-100 text-xs rounded p-2 focus:outline-none focus:border-brand">
                                             <!-- Episodes option list loads here -->
                                         </select>
@@ -166,7 +180,7 @@
                             </div>
 
                             <p id="movieOverview" class="text-xs md:text-sm text-slate-300 leading-relaxed max-h-40 overflow-y-auto pr-2">
-                                තෝරාගත් සිනමාපටයේ විස්තරය...
+                                Description of the selected film...
                             </p>
                         </div>
 
@@ -174,7 +188,7 @@
                         <div class="space-y-3">
                             <!-- මෙම බටන් එකේ ලින්ක් එක පහත JavaScript තුල ඇති CUSTOM_DOWNLOAD_URL_TEMPLATE මගින් වෙනස් කළ හැක -->
                             <a id="downloadButton" href="#" target="_blank" class="block w-full text-center bg-emerald-600 hover:bg-emerald-500 text-white text-xs md:text-sm font-bold py-3 px-4 rounded-lg transition-all shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-2">
-                                <i class="fa-solid fa-download"></i> <span id="downloadBtnText">බාගත කරගන්න (Download)</span>
+                                <i class="fa-solid fa-download"></i> <span id="downloadBtnText">Download</span>
                             </a>
                             <p class="text-[10px] text-slate-400 text-center">
                             The downloads provided by the button above are provided by a third-party website.
@@ -232,9 +246,9 @@
             <!-- List Title Area -->
             <div class="flex items-center justify-between">
                 <h3 id="sectionTitle" class="text-base md:text-lg font-bold text-white border-l-4 border-brand pl-2.5 tracking-wide">
-                    ජනප්‍රිය නිර්මාණ
+                    Popular designs
                 </h3>
-                <span id="resultsCount" class="text-[11px] font-semibold text-slate-400 bg-slateDark-900 border border-slate-800 px-3 py-1 rounded-full">හොයමින්...</span>
+                <span id="resultsCount" class="text-[11px] font-semibold text-slate-400 bg-slateDark-900 border border-slate-800 px-3 py-1 rounded-full">Searching...</span>
             </div>
 
             <!-- Loading Spinner Indicator -->
@@ -254,9 +268,9 @@
     <!-- පාදකය (Footer) -->
     <footer class="border-t border-slate-800 bg-slateDark-950 py-6 text-center text-xs text-slate-500">
         <div class="max-w-7xl mx-auto px-4 space-y-2">
-            <p class="text-slate-400 font-bold tracking-wider">CINEMA MAX</p>
+            <p class="text-slate-400 font-bold tracking-wider">Flixo Cinema</p>
             <p>All videos and downloads contained herein are operated through third-party services.</p>
-            <p class="text-slate-600">&copy; 2026 Cinema Max. All Rights Reserved.</p>
+            <p class="text-slate-600">&copy; 2026 Flixo Cinema. All Rights Reserved.</p>
         </div>
     </footer>
 
@@ -265,7 +279,7 @@
         // ================= DOWNLOAD URL CONFIGURATION =================
         // කෝඩ් එක ඇතුළෙන් බාගත කිරීමේ (Download) ලින්ක් එක වෙනස් කිරීමට අවශ්‍ය නම් පහත ලින්ක් එක ඔබට ගැලපෙන ලෙස වෙනස් කරන්න.
         // {IMDB_ID} මගින් IMDb අයිඩී එකත්, {SEASON} සහ {EPISODE} මගින් සීසන් සහ එපිසෝඩ් අංකත් ස්වයංක්‍රීයව පද්ධතිය මඟින් සකසනු ඇත.
-        const CUSTOM_DOWNLOAD_URL_TEMPLATE = "https://sub.com";
+        const CUSTOM_DOWNLOAD_URL_TEMPLATE = "https://www.effectivecpmnetwork.com/isdmekqq1?key=0e456f6ff1fa5c87324f600ea37cdec6";
 
         // API Configurations
         const apiKey = '2e45f250dd9649f9c4ac88eb2f62a624';
@@ -315,8 +329,14 @@
             { id: 99, name: "Documentary" },
             { id: 18, name: "Drama" },
             { id: 10751, name: "Family" },
+            { id: 14, name: "Fantasy" },
+            { id: 36, name: "History" },
+            { id: 27, name: "Horror" },
+            { id: 10402, name: "Music" },
             { id: 9648, name: "Mystery" },
-            { id: 10765, name: "Sci-Fi & Fantasy" }
+            { id: 10749, name: "Romance" },
+            { id: 10765, name: "Sci-Fi" },
+            { id: 53, name: "Thriller" }
         ];
 
         // On Page Load Initiation
@@ -436,7 +456,7 @@
                 });
 
                 const response = await fetch(`${tmdbBaseUrl}${endpoint}?${queryParams}`);
-                if (!response.ok) throw new Error('දත්ත ලබාගැනීම අසාර්ථකයි.');
+                if (!response.ok) throw new Error('Data retrieval failed.');
 
                 const data = await response.json();
                 renderMediaCards(data.results);
@@ -458,7 +478,7 @@
                 grid.innerHTML = `
                     <div class="col-span-full text-center py-16 text-slate-400">
                         <i class="fa-solid fa-folder-open text-3xl mb-2"></i>
-                        <p class="text-xs md:text-sm">කිසිදු නිර්මාණයක් සොයාගත නොහැකි විය. වෙනත් තේරීමක් කර බලන්න.</p>
+                        <p class="text-xs md:text-sm">No designs found. Please try another selection.</p>
                     </div>
                 `;
                 return;
@@ -520,7 +540,7 @@
             const tvSelectorContainer = document.getElementById('tvSelectorContainer');
             
             selectedId = id;
-            playingTitle.innerText = "ලෝඩ් වෙමින් පවතී...";
+            playingTitle.innerText = "Loading...";
             resetPlayer();
 
             try {
@@ -539,7 +559,7 @@
 
                 const title = details.title || details.name;
                 playingTitle.innerText = title;
-                movieOverview.innerText = details.overview || "කථා සාරාංශයක් නොමැත.";
+                movieOverview.innerText = details.overview || "There is no story summary.";
                 movieYear.innerText = (details.release_date || details.first_air_date || 'N/A').split('-')[0];
                 movieRating.innerHTML = `<i class="fa-solid fa-star text-amber-500 mr-1"></i>${details.vote_average ? details.vote_average.toFixed(1) : 'N/A'}`;
                 movieLang.innerText = details.original_language ? details.original_language.toUpperCase() : 'EN';
@@ -558,8 +578,8 @@
 
             } catch (err) {
                 console.error(err);
-                playingTitle.innerText = "දෝෂයකි - වාදනය කල නොහැක";
-                movieOverview.innerText = "මෙම නිර්මාණයේ IMDb සබැඳිය සොයා ගැනීමට නොහැකි විය. වෙනත් එකක් තෝරන්න.";
+                playingTitle.innerText = "Error - cannot be played.";
+                movieOverview.innerText = "The IMDb link for this production could not be found. Please select another one.";
                 disableDownloadButton();
             }
         }
@@ -594,7 +614,7 @@
             curSeason = parseInt(seasonNum);
             
             const episodeSelect = document.getElementById('episodeSelect');
-            episodeSelect.innerHTML = '<option>ලෝඩ් වෙමින්...</option>';
+            episodeSelect.innerHTML = '<option>Loading...</option>';
 
             try {
                 const response = await fetch(`${tmdbBaseUrl}/tv/${selectedId}/season/${curSeason}?api_key=${apiKey}`);
@@ -613,12 +633,12 @@
                     episodeSelect.value = 1;
                     playTvEpisode();
                 } else {
-                    episodeSelect.innerHTML = '<option value="">කොටස් නැත</option>';
+                    episodeSelect.innerHTML = '<option value="">No parts</option>';
                     disableDownloadButton();
                 }
             } catch (err) {
                 console.error(err);
-                episodeSelect.innerHTML = '<option value="">දත්ත ලබාගැනීම අසාර්ථකයි</option>';
+                episodeSelect.innerHTML = '<option value="">Data retrieval failed.</option>';
                 disableDownloadButton();
             }
         }
@@ -757,4 +777,9 @@
         }
     </script>
 </body>
+
+<!--ad banner-->
+<script async="async" data-cfasync="false" src="https://pl25626753.effectivecpmnetwork.com/9c17c0a147a8357aefebbbdf79ca16c7/invoke.js"></script>
+<div id="container-9c17c0a147a8357aefebbbdf79ca16c7"></div>
+
 </html>
